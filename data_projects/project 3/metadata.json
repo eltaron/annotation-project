@@ -1,0 +1,12 @@
+{
+    "project_name": "project 3",
+    "description": "any thing",
+    "classes": [
+        {
+            "name": "saar",
+            "color": "#00ffba"
+        }
+    ],
+    "annotations": [],
+    "updated_at": "2026-06-20T20:42:46.234125"
+}

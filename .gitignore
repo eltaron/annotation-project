@@ -1,0 +1,47 @@
+# OS
+Thumbs.db
+.DS_Store
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+annotation_env/
+env/
+venv/
+
+# Node
+node_modules/
+
+# Laravel
+backend/.env
+backend/.env.*.local
+backend/vendor/
+backend/node_modules/
+backend/public/build/
+backend/storage/framework/views/*.php
+backend/storage/framework/cache/data/
+backend/storage/framework/sessions/*
+backend/storage/framework/testing/*
+backend/storage/logs/*
+backend/bootstrap/cache/*.php
+backend/storage/app/public/projects/
+
+# Large ML checkpoints
+checkpoint/sam_vit_b_01ec64.pth
+checkpoint/sam_vit_l_*.pth
+checkpoint/sam_vit_h_*.pth
+checkpoint/*.pth
+
+# IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# Submodules (clone separately)
+segment-anything/
+
+# Docker
+docker-compose.override.yml

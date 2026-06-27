@@ -1,0 +1,11 @@
+{
+    "project_name": "project1",
+    "description": "for segment",
+    "classes": [
+        {
+            "name": "class1",
+            "color": "#000eff"
+        }
+    ],
+    "annotations": []
+}
