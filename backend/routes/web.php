@@ -8,6 +8,7 @@ use App\Http\Controllers\AnnotationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PythonBridgeController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AssistantController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
@@ -16,6 +17,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::resource('projects', ProjectController::class);
+
+    Route::prefix('assistant')->group(function () {
+        Route::get('/', [AssistantController::class, 'index'])->name('assistant.index');
+        Route::post('/ask', [AssistantController::class, 'ask'])->name('assistant.ask');
+    });
 
     Route::prefix('projects/{project}')->group(function () {
         Route::post('/images/upload', [ImageUploadController::class, 'upload'])->name('projects.images.upload');
