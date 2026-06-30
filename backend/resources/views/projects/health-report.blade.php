@@ -1,8 +1,8 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Crop Health Report: {{ $project->name }}</h2>
-            <a href="{{ route('projects.show', $project) }}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition">← Back</a>
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">🌱 تقرير صحة المحاصيل: {{ $project->name }}</h2>
+            <a href="{{ route('projects.show', $project) }}" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition">→ رجوع</a>
         </div>
     </x-slot>
 
@@ -10,70 +10,70 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             @if($healthResult)
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-emerald-500">
-                        <div class="text-sm text-gray-500">Total Area</div>
-                        <div class="text-2xl font-bold text-gray-900">{{ number_format($healthResult->total_area_m2, 2) }} m²</div>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-r-4 border-cyan-500">
+                        <div class="text-sm text-gray-500">المساحة الإجمالية</div>
+                        <div class="text-2xl font-bold text-gray-900 mt-1">{{ number_format($healthResult->total_area_m2, 2) }} م²</div>
                     </div>
-                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-emerald-500">
-                        <div class="text-sm text-gray-500">Healthy</div>
-                        <div class="text-2xl font-bold text-emerald-600">{{ $healthResult->healthy_percentage }}%</div>
-                        <div class="text-xs text-gray-400">{{ number_format($healthResult->healthy_area_m2, 2) }} m²</div>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-r-4 border-emerald-500">
+                        <div class="text-sm text-gray-500">صحي</div>
+                        <div class="text-2xl font-bold text-emerald-600 mt-1">{{ $healthResult->healthy_percentage }}%</div>
+                        <div class="text-xs text-gray-400">{{ number_format($healthResult->healthy_area_m2, 2) }} م²</div>
                     </div>
-                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-500">
-                        <div class="text-sm text-gray-500">Stressed</div>
-                        <div class="text-2xl font-bold text-yellow-600">{{ $healthResult->stressed_percentage }}%</div>
-                        <div class="text-xs text-gray-400">{{ number_format($healthResult->stressed_area_m2, 2) }} m²</div>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-r-4 border-yellow-500">
+                        <div class="text-sm text-gray-500">مجهد</div>
+                        <div class="text-2xl font-bold text-yellow-600 mt-1">{{ $healthResult->stressed_percentage }}%</div>
+                        <div class="text-xs text-gray-400">{{ number_format($healthResult->stressed_area_m2, 2) }} م²</div>
                     </div>
-                    <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-500">
-                        <div class="text-sm text-gray-500">Unhealthy</div>
-                        <div class="text-2xl font-bold text-red-600">{{ $healthResult->unhealthy_percentage }}%</div>
-                        <div class="text-xs text-gray-400">{{ number_format($healthResult->unhealthy_area_m2, 2) }} m²</div>
+                    <div class="bg-white rounded-xl shadow-sm p-6 border-r-4 border-red-500">
+                        <div class="text-sm text-gray-500">غير صحي</div>
+                        <div class="text-2xl font-bold text-red-600 mt-1">{{ $healthResult->unhealthy_percentage }}%</div>
+                        <div class="text-xs text-gray-400">{{ number_format($healthResult->unhealthy_area_m2, 2) }} م²</div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div class="bg-white rounded-xl shadow-sm p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Health Distribution</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">توزيع الصحة</h3>
                         <canvas id="healthPieChart" height="300"></canvas>
                     </div>
-
                     <div class="bg-white rounded-xl shadow-sm p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Area by Category (m²)</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">المساحة حسب الفئة (م²)</h3>
                         <canvas id="healthBarChart" height="300"></canvas>
                     </div>
                 </div>
 
-                @if($healthResult->raw_stats)
                 <div class="bg-white rounded-xl shadow-sm p-6 mt-8">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Detailed Statistics</h3>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">إحصائيات تفصيلية</h3>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left">
+                        <table class="w-full text-right">
                             <thead>
                                 <tr class="border-b border-gray-200">
-                                    <th class="py-3 text-sm font-medium text-gray-500">Category</th>
-                                    <th class="py-3 text-sm font-medium text-gray-500">Percentage</th>
-                                    <th class="py-3 text-sm font-medium text-gray-500">Area (m²)</th>
+                                    <th class="py-3 text-sm font-medium text-gray-500">الفئة</th>
+                                    <th class="py-3 text-sm font-medium text-gray-500">النسبة</th>
+                                    <th class="py-3 text-sm font-medium text-gray-500">المساحة (م²)</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($healthResult->raw_stats as $category => $data)
+                                @php
+                                    $stats = json_decode(json_encode($healthResult->raw_stats), true) ?? [];
+                                @endphp
+                                @foreach($stats as $category => $data)
                                 <tr class="border-b border-gray-100">
-                                    <td class="py-3 font-medium text-gray-900">{{ $category }}</td>
-                                    <td class="py-3 text-gray-600">{{ $data['percentage'] }}%</td>
-                                    <td class="py-3 text-gray-600">{{ number_format($data['area_m2'], 2) }}</td>
+                                    <td class="py-3 font-medium text-gray-900">{{ is_string($category) ? $category : '—' }}</td>
+                                    <td class="py-3 text-gray-600">{{ is_array($data) && isset($data['percentage']) ? $data['percentage'] . '%' : '—' }}</td>
+                                    <td class="py-3 text-gray-600">{{ is_array($data) && isset($data['area_m2']) ? number_format($data['area_m2'], 2) : (is_numeric($data) ? number_format($data, 4) : $data) }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
                 </div>
-                @endif
             @else
                 <div class="bg-white rounded-xl shadow-sm p-12 text-center">
-                    <div class="text-6xl mb-4">🌾</div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">No Health Report Yet</h3>
-                    <p class="text-gray-500 mb-6">Upload a satellite image and run crop health analysis from the annotation workspace.</p>
-                    <a href="{{ route('projects.show', $project) }}" class="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition">Upload Image</a>
+                    <div class="text-7xl mb-4">🌾</div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">لا يوجد تقرير صحي بعد</h3>
+                    <p class="text-gray-500 mb-6">ارفع صورة فضائية وقم بتحليل صحة المحاصيل من مساحة العمل</p>
+                    <a href="{{ route('projects.show', $project) }}" class="px-6 py-3 bg-gradient-to-r from-cyan-600 to-emerald-600 text-white rounded-lg hover:from-cyan-700 hover:to-emerald-700 transition shadow-sm">رفع صورة</a>
                 </div>
             @endif
         </div>
@@ -86,7 +86,7 @@
     new Chart(document.getElementById('healthPieChart'), {
         type: 'pie',
         data: {
-            labels: ['Healthy', 'Stressed', 'Unhealthy'],
+            labels: ['صحي', 'مجهد', 'غير صحي'],
             datasets: [{
                 data: [
                     {{ $healthResult->healthy_percentage }},
@@ -101,7 +101,10 @@
         options: {
             responsive: true,
             plugins: {
-                legend: { position: 'bottom' }
+                legend: {
+                    position: 'bottom',
+                    labels: { font: { family: 'Cairo', size: 13 } }
+                }
             }
         }
     });
@@ -109,9 +112,9 @@
     new Chart(document.getElementById('healthBarChart'), {
         type: 'bar',
         data: {
-            labels: ['Healthy', 'Stressed', 'Unhealthy'],
+            labels: ['صحي', 'مجهد', 'غير صحي'],
             datasets: [{
-                label: 'Area (m²)',
+                label: 'المساحة (م²)',
                 data: [
                     {{ $healthResult->healthy_area_m2 }},
                     {{ $healthResult->stressed_area_m2 }},
@@ -127,7 +130,13 @@
                 legend: { display: false }
             },
             scales: {
-                y: { beginAtZero: true }
+                y: {
+                    beginAtZero: true,
+                    ticks: { font: { family: 'Cairo' } }
+                },
+                x: {
+                    ticks: { font: { family: 'Cairo', size: 13 } }
+                }
             }
         }
     });
