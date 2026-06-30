@@ -11,6 +11,8 @@
 - [متطلبات التشغيل](#-متطلبات-التشغيل)
 - [طريقة التثبيت والتشغيل](#-طريقة-التثبيت-والتشغيل)
 - [المشروع خطوة بخطوة](#-المشروع-خطوة-بخطوة)
+- [سير العمل (Workflow)](#-سير-العمل-workflow)
+- [المستخدمون والصلاحيات](#-المستخدمون-والصلاحيات)
 - [قاعدة البيانات](#-قاعدة-البيانات)
 - [واجهة API](#-واجهة-api)
 - [Python AI Scripts](#-python-ai-scripts)
@@ -229,6 +231,119 @@ https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
 
 ---
 
+## 🔄 سير العمل (Workflow)
+
+### 📊 سير العمل الكامل من البداية للنهاية
+
+```
+زائر (غير مسجل)
+    │
+    ├─→ Welcome Page (/) ←── الصفحة الترحيبية
+    │
+    ├─→ Register ←── إنشاء حساب جديد
+    │
+    └─→ Login ←── تسجيل الدخول
+         │
+         ▼
+    مستخدم (مسجل دخول)
+         │
+         ├─→ Dashboard ←── نظرة عامة: إحصائيات + آخر المشاريع + تقارير صحية
+         │
+         ├─→ Projects List ←── عرض كل المشاريع
+         │      │
+         │      ├─→ Create Project ←── إنشاء مشروع جديد (اسم + وصف)
+         │      │
+         │      ├─→ [Project Show] ←── تفاصيل المشروع
+         │      │      │
+         │      │      ├─→ Upload Image (.tif) ←── رفع صورة فضائية (4 باند)
+         │      │      │
+         │      │      ├─→ Add Classes ←── إضافة كلاسات التصنيف (لون + اسم)
+         │      │      │
+         │      │      ├─→ [Annotate] ←── فتح مساحة العمل
+         │      │      │      │
+         │      │      │      ├─→ اختيار Class ←── اختيار الكلاس من القائمة
+         │      │      │      ├─→ Click on Canvas ←── الضغط على الصورة
+         │      │      │      ├─→ SAM Segmentation ←── تقسيم آلي للصورة
+         │      │      │      ├─→ ResNet-50 Classification ←── تصنيف الجزء
+         │      │      │      ├─→ Save Annotation ←── حفظ التصنيف
+         │      │      │      ├─→ Undo / Zoom ←── تراجع / تكبير
+         │      │      │      └─→ Export GeoJSON ←── تصدير كـ GeoJSON
+         │      │      │
+         │      │      └─→ [Health Report] ←── تقرير صحة المحاصيل
+         │      │             │
+         │      │             ├─→ Chart.js Pie Chart ←── صحية/مجهد/غير صحي %
+         │      │             ├─→ Chart.js Bar Chart ←── مقارنة المساحات
+         │      │             └─→ جدول التقارير السابقة
+         │      │
+         │      └─→ Edit / Delete Project
+         │
+         ├─→ AI Assistant ←── سؤال وجواب بالعربية (مثلاً "عدد المشاريع كام؟")
+         │
+         └─→ Profile ←── تعديل الملف الشخصي / تغيير كلمة المرور
+```
+
+### 🔄 تدفق البيانات (Data Flow)
+
+```
+1. المستخدم يرفع .tif (4+ bands)
+        │
+2. Laravel يستخدم Python (rasterio) لاستخراج: width, height, bands, CRS
+        │
+3. المستخدم يختار Class ويضغط على الصورة في Canvas
+        │
+4. Laravel → shell_exec() → Python (sam__predectorr.py)
+        │
+5. SAM يخرج: mask_image, polygon_coordinates, bbox, area
+        │
+6. المستخدم يضغط "Classify" → ResNet-50 (EuroSAT) → label + confidence
+        │
+7. المستخدم يضغط "Analyze Health" → geo_processor.py → NDVI stats
+        │
+8. كل النتائج تُحفظ في MySQL وجداول: annotations + crop_health_results
+```
+
+---
+
+## 👤 المستخدمون والصلاحيات
+
+### المستخدمون الحاليون (Seed Data)
+
+| المستخدم | البريد الإلكتروني | كلمة المرور | الدور |
+|----------|-------------------|-------------|-------|
+| 👑 **أحمد المدير** | `admin@geolens.com` | `password` | مدير — يدير المشاريع ويضيف المستخدمين |
+| 🔬 **سارة المحللة** | `analyst@geolens.com` | `password` | محللة — تنشئ مشاريع وتحلل الصور |
+| 👁️ **خالد المشاهد** | `viewer@geolens.com` | `password` | مشاهد — يعرض البيانات والتقارير فقط |
+
+### نظام الصلاحيات (حالياً)
+
+النظام الحالي يستخدم **Laravel Authentication** الأساسي (Breeze) بدون أدوار (Roles). كل المستخدمين لديهم نفس الصلاحيات:
+
+| الإجراء | مدير | محلل | مشاهد |
+|---------|:----:|:----:|:-----:|
+| إنشاء مشروع | ✅ | ✅ | ✅ |
+| عرض المشاريع | ✅ | ✅ | ✅ |
+| تعديل/حذف المشروع | ✅ (مشروعه فقط) | ✅ (مشروعه فقط) | ✅ (مشروعه فقط) |
+| رفع صور | ✅ | ✅ | ✅ |
+| إضافة كلاسات | ✅ | ✅ | ✅ |
+| إنشاء تصنيفات | ✅ | ✅ | ✅ |
+| عرض التقارير الصحية | ✅ | ✅ | ✅ |
+| الذكاء الاصطناعي | ✅ | ✅ | ✅ |
+
+> **ملاحظة:** كل مستخدم يرى فقط مشاريعه الخاصة (مصفاة بـ `Auth::id()`). حالياً لا يوجد Admin Gate يفصل بين المستخدمين — يتم التمييز بالاسم فقط للتوضيح.
+
+### لإضافة مستخدم جديد:
+```bash
+php artisan tinker
+> \App\Models\User::create([
+    'name' => 'اسم المستخدم',
+    'email' => 'user@example.com',
+    'password' => bcrypt('password'),
+    'email_verified_at' => now(),
+  ]);
+```
+
+---
+
 ## 🗄️ قاعدة البيانات
 
 ```sql
@@ -260,7 +375,7 @@ crop_health_results      -- id, project_id, image_upload_id,
 
 ## 🌐 واجهة API
 
-### Web Routes (17 route):
+### Web Routes (19 route):
 
 | Method | Route | Controller | الهدف |
 |--------|-------|-----------|-------|
@@ -282,6 +397,8 @@ crop_health_results      -- id, project_id, image_upload_id,
 | POST | `/projects/{id}/classify` | PythonBridgeController@classify | تشغيل ResNet-50 |
 | POST | `/projects/{id}/analyze-health` | PythonBridgeController@analyzeHealth | تحليل NDVI |
 | GET | `/projects/{id}/health-report` | DashboardController@healthReport | تقرير الصحة |
+| GET | `/assistant` | AssistantController@index | صفحة المساعد الذكي |
+| POST | `/assistant/ask` | AssistantController@ask | API الأسئلة |
 
 ### مسار AJAX (من Annotation Workspace):
 ```javascript
