@@ -105,9 +105,9 @@
                         <span class="text-slate-400">Python</span>
                         <span class="text-slate-300">
                             @php
-                                $pythonCheck = trim(shell_exec("where " . escapeshellarg($pythonPath) . " 2>NUL") ?? '');
+                                $pythonVersion = trim(shell_exec(escapeshellcmd($pythonPath) . " --version 2>&1") ?? '');
                             @endphp
-                            {{ $pythonCheck ? 'Available' : 'Not found' }}
+                            {{ str_contains($pythonVersion, 'Python') && !str_contains($pythonVersion, 'not found') ? 'Available' : 'Not found' }}
                             <span class="text-xs text-slate-500 ml-2">{{ $pythonPath }}</span>
                         </span>
                     </div>

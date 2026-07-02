@@ -7,6 +7,7 @@ use App\Models\ImageUpload;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ImageUploadController extends Controller
@@ -25,10 +26,7 @@ class ImageUploadController extends Controller
 
         $file = $request->file('image');
         $originalName = $file->getClientOriginalName();
-
         $path = $file->store("projects/{$project->id}/images", 'public');
-
-        $metadata = $this->extractMetadata($path);
 
         $upload = ImageUpload::create([
             'project_id' => $project->id,
@@ -36,19 +34,25 @@ class ImageUploadController extends Controller
             'original_name' => $originalName,
             'file_path' => $path,
             'file_size' => $file->getSize(),
-            'width' => $metadata['width'] ?? null,
-            'height' => $metadata['height'] ?? null,
-            'bands' => $metadata['bands'] ?? null,
-            'crs' => $metadata['crs'] ?? null,
         ]);
 
-        if (($metadata['bands'] ?? 0) > 0 && ($metadata['bands'] ?? 0) < 4) {
-            return redirect()->route('projects.show', $project)
-                ->with('error', 'Image must have at least 4 bands (R, G, B, NIR). Uploaded has ' . ($metadata['bands'] ?? 0) . ' bands.');
-        }
+        // Extract metadata in background so upload returns instantly
+        dispatch(function () use ($upload) {
+            try {
+                $metadata = $this->extractMetadata($upload->file_path);
+                $upload->update([
+                    'width' => $metadata['width'] ?? null,
+                    'height' => $metadata['height'] ?? null,
+                    'bands' => $metadata['bands'] ?? null,
+                    'crs' => $metadata['crs'] ?? null,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Metadata extraction failed: ' . $e->getMessage());
+            }
+        })->afterResponse();
 
         return redirect()->route('projects.annotate', [$project, $upload])
-            ->with('success', 'Image uploaded successfully!');
+            ->with('success', 'Image uploaded successfully. Metadata is being extracted in the background.');
     }
 
     public function annotate(Project $project, ImageUpload $imageUpload, Request $request)

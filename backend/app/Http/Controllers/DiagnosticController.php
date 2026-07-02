@@ -31,28 +31,39 @@ class DiagnosticController extends Controller
         $version = trim(shell_exec(
             sprintf('"%s" --version 2>&1', escapeshellcmd($pythonPath))
         ) ?? '');
+        $available = str_contains($version, 'Python') && !str_contains($version, 'not found');
         return [
-            'available' => str_contains($version, 'Python'),
+            'available' => $available,
             'version' => $version ?: 'Not found',
         ];
     }
 
     private function checkImports($pythonPath)
     {
-        $script = 'import sys, json;'
-            . 'pkgs = {"torch": False, "rasterio": False, "numpy": False, "PIL": False, "segment_anything": False};'
-            . 'for p in pkgs:'
-            . '  try:'
-            . '    exec(f"import {p}"); pkgs[p] = True'
-            . '  except: pass;'
-            . 'print(json.dumps(pkgs))';
+        $script = <<<PY
+import sys, json
+pkgs = {"torch": False, "rasterio": False, "numpy": False, "PIL": False, "segment_anything": False}
+for p in pkgs:
+    try:
+        __import__(p)
+        pkgs[p] = True
+    except:
+        pass
+print(json.dumps(pkgs))
+PY;
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'diag_') . '.py';
+        file_put_contents($tmpFile, $script);
 
         $cmd = sprintf(
-            '"%s" -c "%s" 2>&1',
+            '"%s" %s 2>&1',
             escapeshellcmd($pythonPath),
-            $script
+            escapeshellarg($tmpFile)
         );
+
         $output = trim(shell_exec($cmd) ?? '');
+        if (file_exists($tmpFile)) unlink($tmpFile);
+
         $decoded = json_decode($output, true);
 
         if (!is_array($decoded)) {

@@ -14,5 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Uploaded file is too large. Check your PHP upload_max_filesize and post_max_size settings.'], 413);
+            }
+            return back()->with('error', 'Uploaded file is too large. Current limit: ' . ini_get('upload_max_filesize') . '. Increase upload_max_filesize and post_max_size in your php.ini.');
+        });
     })->create();
