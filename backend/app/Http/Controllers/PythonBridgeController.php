@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\ImageUpload;
 use App\Models\Annotation;
 use App\Models\CropHealthResult;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -17,8 +18,8 @@ class PythonBridgeController extends Controller
 
     public function __construct()
     {
-        $this->pythonPath = 'python';
-        $this->projectBasePath = str_replace('\\', '/', base_path('..'));
+        $this->pythonPath = SystemSetting::getValue('python_path', 'python');
+        $this->projectBasePath = SystemSetting::getValue('python_base_path', str_replace('\\', '/', base_path('..')));
     }
 
     public function segment(Request $request, Project $project)
@@ -136,6 +137,7 @@ class PythonBridgeController extends Controller
     private function callPythonSamSegmenter($imagePath, $clickX, $clickY, $clickType, $classId, $color)
     {
         $base = $this->projectBasePath;
+        $samCheckpoint = SystemSetting::getValue('sam_checkpoint_path', 'checkpoint/sam_vit_b_01ec64.pth');
         $script = <<<PY
 import sys, json
 sys.path.insert(0, '{$base}')
@@ -144,7 +146,7 @@ from sam__predectorr import AdvancedSAMSegmenter
 with open(r'{$imagePath}', 'rb') as f:
     data = f.read()
 
-segmenter = AdvancedSAMSegmenter()
+segmenter = AdvancedSAMSegmenter(checkpoint_path=r'{$samCheckpoint}')
 segmenter.load_image(data)
 
 result = segmenter.segment_with_click({$clickX}, {$clickY}, {$clickType}, {$classId}, '{$color}')
@@ -167,6 +169,7 @@ PY;
     private function callPythonClassifier($imagePath)
     {
         $base = $this->projectBasePath;
+        $classifierWeights = SystemSetting::getValue('classifier_weights_path', 'checkpoint/classifier_weights.pth');
         $script = <<<PY
 import sys, json
 sys.path.insert(0, '{$base}')
@@ -174,7 +177,7 @@ from classifier import EuroSATResNetClassifier
 import numpy as np
 from PIL import Image
 
-clf = EuroSATResNetClassifier(weights_path='{$base}/checkpoint/classifier_weights.pth')
+clf = EuroSATResNetClassifier(weights_path=r'{$classifierWeights}')
 
 img = Image.open(r'{$imagePath}').convert('RGB')
 img_array = np.array(img)

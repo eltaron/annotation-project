@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\ImageUpload;
+use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -16,8 +17,10 @@ class ImageUploadController extends Controller
             abort(403);
         }
 
+        $maxMb = (int) SystemSetting::getValue('max_upload_size_mb', '500');
+        $maxKb = $maxMb * 1024;
         $request->validate([
-            'image' => 'required|file|mimes:tif,tiff|max:512000',
+            'image' => 'required|file|mimes:tif,tiff|max:' . $maxKb,
         ]);
 
         $file = $request->file('image');
@@ -48,7 +51,7 @@ class ImageUploadController extends Controller
             ->with('success', 'Image uploaded successfully!');
     }
 
-    public function annotate(Project $project, ImageUpload $imageUpload)
+    public function annotate(Project $project, ImageUpload $imageUpload, Request $request)
     {
         if ($project->user_id !== Auth::id()) {
             abort(403);
@@ -56,9 +59,11 @@ class ImageUploadController extends Controller
 
         $imageUpload->load('annotations.annotationClass');
         $classes = $project->annotationClasses;
+        $selectedClassId = $request->query('class_id');
 
-        return view('annotate.workspace', compact('project', 'imageUpload', 'classes'));
+        return view('annotate.workspace', compact('project', 'imageUpload', 'classes', 'selectedClassId'));
     }
+
 
     private function extractMetadata($path)
     {

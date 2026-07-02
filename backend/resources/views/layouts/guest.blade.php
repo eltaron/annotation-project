@@ -1,74 +1,138 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
+<html lang="en" dir="ltr">
 
-        <title>{{ config('app.name', 'GeoLens') }} — AI Satellite Annotation</title>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Geo Annotate — AI Annotation Tool for Satellite Images</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        .auth-glow {
+            box-shadow: 0 0 80px rgba(6, 182, 212, 0.08);
+        }
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        @keyframes float {
 
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-
-        <style>
-            body { font-family: 'Cairo', 'Inter', sans-serif; }
-            .auth-gradient {
-                background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+            0%,
+            100% {
+                transform: translateY(0px);
             }
-            .auth-glow {
-                box-shadow: 0 0 60px rgba(34, 211, 238, 0.1);
-            }
-            .auth-card {
-                background: rgba(255, 255, 255, 0.98);
-                backdrop-filter: blur(20px);
-            }
-        </style>
-    </head>
-    <body class="auth-gradient min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 font-sans text-gray-900 antialiased">
 
-        {{-- Background decorative elements --}}
-        <div class="fixed inset-0 overflow-hidden pointer-events-none">
-            <div class="absolute -top-40 -right-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
-            <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl"></div>
-            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-400/3 rounded-full blur-3xl"></div>
-        </div>
+            50% {
+                transform: translateY(-20px);
+            }
+        }
 
-        {{-- Logo + Brand --}}
-        <div class="relative z-10 flex flex-col items-center mb-8">
-            <a href="/" class="flex flex-col items-center gap-3 group">
-                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 p-0.5 auth-glow group-hover:scale-105 transition-transform duration-300">
-                    <div class="w-full h-full rounded-2xl bg-gray-900 flex items-center justify-center">
-                        <x-application-logo class="w-12 h-12 text-cyan-400" />
-                    </div>
+        @keyframes float-delayed {
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% center;
+            }
+
+            100% {
+                background-position: 200% center;
+            }
+        }
+
+        .floating-orb {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(100px);
+            opacity: 0.15;
+            z-index: 0;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.6), transparent);
+            top: -100px;
+            left: -100px;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .orb-2 {
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.5), transparent);
+            bottom: -80px;
+            right: -80px;
+            animation: float-delayed 10s ease-in-out infinite;
+        }
+
+        .orb-3 {
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.4), transparent);
+            top: 50%;
+            left: 50%;
+            animation: float 12s ease-in-out infinite;
+        }
+    </style>
+</head>
+
+<body
+    style="background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%); background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 30px 30px; font-family: 'Cairo', sans-serif;background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);"
+    class="py-5 min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 antialiased overflow-x-hidden">
+
+    {{-- Floating orbs --}}
+    <div class="floating-orb orb-1"></div>
+    <div class="floating-orb orb-2"></div>
+    <div class="floating-orb orb-3"></div>
+
+    {{-- Scan line overlay --}}
+    <div style="background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.008) 2px, rgba(255,255,255,0.008) 4px);"
+        class="fixed inset-0 pointer-events-none z-0"></div>
+
+    {{-- <div class="relative z-10 flex flex-col items-center mb-8">
+        <a href="/" class="flex flex-col items-center gap-3 group">
+            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 p-0.5 auth-glow group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-cyan-500/10 transition-all duration-500">
+                <div class="w-full h-full rounded-2xl bg-slate-900/80 backdrop-blur-sm flex items-center justify-center">
+                    <x-application-logo class="w-12 h-12 text-cyan-400" />
                 </div>
-                <div class="text-center">
-                    <h1 class="text-2xl font-bold text-white tracking-tight">GeoLens</h1>
-                    <p class="text-sm text-cyan-300/70">AI Satellite Intelligence</p>
-                </div>
-            </a>
-        </div>
-
-        {{-- Card --}}
-        <div class="relative z-10 w-full sm:max-w-md px-6 py-8 bg-white/95 backdrop-blur-sm shadow-2xl auth-glow rounded-2xl sm:rounded-3xl border border-white/10">
-            {{ $slot }}
-
-            <div class="mt-6 pt-4 border-t border-gray-100 text-center">
-                <p class="text-xs text-gray-400">
-                    &copy; {{ date('Y') }} GeoLens. All rights reserved.
-                </p>
             </div>
+            <div class="text-center">
+                <h1 class="text-2xl font-bold text-white tracking-tight">Geo Annotate</h1>
+                <p class="text-sm text-cyan-400/50">AI Annotation Tool for Satellite Images</p>
+            </div>
+        </a>
+    </div> --}}
+
+    <div
+        class="relative z-10 w-full sm:max-w-md px-8 py-8 bg-slate-900/60 backdrop-blur-xl shadow-2xl auth-glow rounded-3xl border border-white/10 transition-all duration-500">
+        <div class="absolute inset-0 rounded-3xl bg-gradient-to-b from-white/[0.03] to-transparent pointer-events-none">
         </div>
 
-        {{-- Decorative dots at bottom --}}
-        <div class="relative z-10 mt-8 flex gap-2">
-            <span class="w-2 h-2 rounded-full bg-cyan-500/30"></span>
-            <span class="w-2 h-2 rounded-full bg-emerald-500/30"></span>
-            <span class="w-2 h-2 rounded-full bg-cyan-500/30"></span>
+        <div class="relative">
+            {{ $slot }}
         </div>
 
-    </body>
+        <div class="mt-6 pt-4 border-t border-white/5 text-center">
+            <p class="text-xs text-slate-500">Geo Annotate &copy; {{ date('Y') }} — All rights reserved</p>
+        </div>
+    </div>
+
+    <div class="relative z-10 mt-8 flex gap-3">
+        <span class="w-2 h-2 rounded-full bg-cyan-500/40 animate-pulse"></span>
+        <span class="w-2 h-2 rounded-full bg-emerald-500/40 animate-pulse" style="animation-delay: 0.3s"></span>
+        <span class="w-2 h-2 rounded-full bg-cyan-500/40 animate-pulse" style="animation-delay: 0.6s"></span>
+    </div>
+
+</body>
+
 </html>

@@ -9,12 +9,18 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PythonBridgeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AssistantController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\ImagePreviewController;
+use App\Http\Controllers\DiagnosticController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::get('/settings/diagnostic', [DiagnosticController::class, 'index'])->name('settings.diagnostic');
 
     Route::resource('projects', ProjectController::class);
 
@@ -26,6 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('projects/{project}')->group(function () {
         Route::post('/images/upload', [ImageUploadController::class, 'upload'])->name('projects.images.upload');
         Route::get('/annotate/{imageUpload}', [ImageUploadController::class, 'annotate'])->name('projects.annotate');
+        Route::get('/images/{imageUpload}/preview', [ImagePreviewController::class, 'preview'])->name('projects.images.preview');
 
         Route::post('/classes', [AnnotationClassController::class, 'store'])->name('projects.classes.store');
         Route::delete('/classes/{annotationClass}', [AnnotationClassController::class, 'destroy'])->name('projects.classes.destroy');
@@ -37,7 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/classify', [PythonBridgeController::class, 'classify'])->name('projects.classify');
         Route::post('/analyze-health', [PythonBridgeController::class, 'analyzeHealth'])->name('projects.analyze-health');
 
-        Route::get('/health-report', [DashboardController::class, 'healthReport'])->name('projects.health-report');
+        Route::get('/health-report/{imageUpload}', [DashboardController::class, 'healthReport'])->name('projects.health-report');
     });
 });
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\ImageUpload;
 use App\Models\CropHealthResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,14 +32,18 @@ class DashboardController extends Controller
         ));
     }
 
-    public function healthReport(Project $project)
+    public function healthReport(Project $project, ImageUpload $imageUpload)
     {
         if ($project->user_id !== Auth::id()) {
             abort(403);
         }
 
+        if ($imageUpload->project_id !== $project->id) {
+            abort(404);
+        }
+
         $healthResult = $project->cropHealthResults()->latest()->first();
 
-        return view('projects.health-report', compact('project', 'healthResult'));
+        return view('projects.health-report', compact('project', 'imageUpload', 'healthResult'));
     }
 }
