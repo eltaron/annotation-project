@@ -3,6 +3,7 @@
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ImageUploadController;
+use App\Http\Controllers\ChunkedUploadController;
 use App\Http\Controllers\AnnotationClassController;
 use App\Http\Controllers\AnnotationController;
 use App\Http\Controllers\DashboardController;
@@ -31,6 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('projects/{project}')->group(function () {
         Route::post('/images/upload', [ImageUploadController::class, 'upload'])->name('projects.images.upload');
+        Route::post('/images/upload-chunk', [ChunkedUploadController::class, 'uploadChunk'])->name('projects.images.upload-chunk');
         Route::get('/annotate/{imageUpload}', [ImageUploadController::class, 'annotate'])->name('projects.annotate');
         Route::get('/images/{imageUpload}/preview', [ImagePreviewController::class, 'preview'])->name('projects.images.preview');
 

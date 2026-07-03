@@ -9,6 +9,7 @@ use App\Models\CropHealthResult;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class PythonBridgeController extends Controller
@@ -40,26 +41,39 @@ class PythonBridgeController extends Controller
         $annotationClass = $project->annotationClasses()->findOrFail($request->class_id);
         $color = $request->class_color ?? $annotationClass->color;
 
+        Log::info('SAM segment starting', [
+            'image' => $imagePath,
+            'class_id' => $request->class_id,
+            'click' => [$request->click_x, $request->click_y],
+        ]);
+
         $result = $this->callPythonSamSegmenter(
             $imagePath, $request->click_x, $request->click_y,
             $request->click_type, $request->class_id, $color
         );
 
         if (!$result || isset($result['error'])) {
-            return response()->json(['error' => $result['error'] ?? 'Segmentation failed'], 500);
+            $msg = $result['error'] ?? 'Segmentation failed';
+            Log::error('SAM segment failed', ['error' => $msg]);
+            return response()->json(['error' => $msg], 500);
         }
 
-        $annotation = Annotation::create([
-            'image_upload_id' => $imageUpload->id,
-            'annotation_class_id' => $request->class_id,
-            'user_id' => Auth::id(),
-            'polygon_coordinates' => $result['polygons'] ?? null,
-            'area_pixels' => $result['area_pixels'] ?? 0,
-            'area_m2' => $result['area_m2'] ?? 0,
-            'classification_label' => $result['classification_label'] ?? null,
-            'classification_confidence' => $result['classification_confidence'] ?? null,
-            'geo_metadata' => $result['geo_metadata'] ?? null,
-        ]);
+        try {
+            $annotation = Annotation::create([
+                'image_upload_id' => $imageUpload->id,
+                'annotation_class_id' => $request->class_id,
+                'user_id' => Auth::id(),
+                'polygon_coordinates' => $result['pixel_coords'] ?? null,
+                'area_pixels' => $result['area_pixels'] ?? 0,
+                'area_m2' => $result['area_m2'] ?? 0,
+                'classification_label' => $result['classification_label'] ?? null,
+                'classification_confidence' => $result['classification_confidence'] ?? null,
+                'geo_metadata' => $result['geo_metadata'] ?? null,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('SAM annotation create failed', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Database error: ' . $e->getMessage()], 500);
+        }
 
         return response()->json($annotation->load('annotationClass'), 201);
     }
@@ -137,31 +151,68 @@ class PythonBridgeController extends Controller
     private function callPythonSamSegmenter($imagePath, $clickX, $clickY, $clickType, $classId, $color)
     {
         $base = $this->projectBasePath;
-        $samCheckpoint = SystemSetting::getValue('sam_checkpoint_path', 'checkpoint/sam_vit_b_01ec64.pth');
+        $samCheckpoint = SystemSetting::getValue('sam_checkpoint_path', $base . '/checkpoint/sam_vit_b_01ec64.pth');
+
+        Log::debug('SAM checkpoint', ['path' => $samCheckpoint, 'exists' => file_exists($samCheckpoint)]);
+        Log::debug('SAM image', ['path' => $imagePath, 'exists' => file_exists($imagePath)]);
+
+        if (!file_exists($samCheckpoint)) {
+            $msg = "SAM checkpoint not found at: $samCheckpoint";
+            Log::error($msg);
+            return ['error' => $msg];
+        }
+        if (!file_exists($imagePath)) {
+            $msg = "Image file not found at: $imagePath";
+            Log::error($msg);
+            return ['error' => $msg];
+        }
+
         $script = <<<PY
-import sys, json
+import sys, json, warnings, traceback
 sys.path.insert(0, '{$base}')
-from sam__predectorr import AdvancedSAMSegmenter
 
-with open(r'{$imagePath}', 'rb') as f:
-    data = f.read()
+warnings.filterwarnings('ignore', category=FutureWarning)
 
-segmenter = AdvancedSAMSegmenter(checkpoint_path=r'{$samCheckpoint}')
-segmenter.load_image(data)
+try:
+    from sam__predectorr import AdvancedSAMSegmenter
+    import numpy as np
+    from rasterio.features import shapes
+    from rasterio import Affine
 
-result = segmenter.segment_with_click({$clickX}, {$clickY}, {$clickType}, {$classId}, '{$color}')
+    with open(r'{$imagePath}', 'rb') as f:
+        data = f.read()
 
-output = {
-    'area_pixels': result['class_statistics']['total_pixels'],
-    'area_m2': result['class_statistics']['area_m2'],
-    'geo_metadata': result['class_statistics'].get('geospatial_metadata', {}),
-}
+    segmenter = AdvancedSAMSegmenter(checkpoint_path=r'{$samCheckpoint}')
+    segmenter.load_image(data)
 
-geojson = segmenter.export_geojson({$classId})
-if geojson:
-    output['polygons'] = geojson['features']
+    result = segmenter.segment_with_click({$clickX}, {$clickY}, {$clickType}, {$classId}, '{$color}')
 
-print(json.dumps(output))
+    output = dict(
+        area_pixels=result['class_statistics']['total_pixels'],
+        area_m2=result['class_statistics']['area_m2'],
+        geo_metadata=result['class_statistics'].get('geospatial_metadata', {}),
+    )
+
+    # Export pixel coordinates for canvas drawing (in preview image space, max 2048px)
+    mask = (segmenter.label_map == {$classId}).astype(np.uint8)
+    pixel_rings = []
+    for geom, val in shapes(mask, mask=mask, transform=Affine.identity()):
+        if val == 1 and geom and 'coordinates' in geom:
+            coords_list = geom['coordinates']
+            if geom['type'] == 'MultiPolygon':
+                for poly_coords in coords_list:
+                    for ring in poly_coords:
+                        pixel_rings.append([[round(x), round(y)] for x, y in ring])
+            else:
+                for ring in coords_list:
+                    pixel_rings.append([[round(x), round(y)] for x, y in ring])
+    output['pixel_coords'] = pixel_rings
+
+    print(json.dumps(output))
+except Exception as e:
+    error_msg = traceback.format_exc()
+    print(json.dumps(dict(error=str(e), trace=error_msg)))
+    sys.exit(1)
 PY;
         return $this->runPython($script);
     }
@@ -214,16 +265,46 @@ PY;
             escapeshellarg($tmpFile)
         );
 
+        Log::debug('Python command', ['cmd' => $command]);
+
         try {
             $output = shell_exec($command);
-            $result = json_decode($output, true);
-            if (json_last_error() !== JSON_ERROR_NONE || !is_array($result)) {
-                \Log::error('Python bridge: invalid JSON output', ['output' => $output]);
-                return ['error' => 'Invalid Python output'];
+
+            if ($output === null) {
+                $msg = 'shell_exec returned null (command may have failed or timed out)';
+                Log::error('Python bridge: ' . $msg, ['command' => $command]);
+                return ['error' => $msg];
             }
+
+            $output = trim($output);
+            Log::debug('Python raw output', ['output' => substr($output, 0, 1000)]);
+
+            $jsonStart = strpos($output, '{');
+            if ($jsonStart === false) {
+                Log::error('Python bridge: no JSON found in output', ['output' => $output]);
+                return ['error' => substr($output, 0, 500)];
+            }
+
+            $jsonPart = substr($output, $jsonStart);
+            $jsonEnd = strrpos($jsonPart, '}');
+            $jsonPart = $jsonEnd !== false ? substr($jsonPart, 0, $jsonEnd + 1) : $jsonPart;
+
+            $result = json_decode($jsonPart, true);
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($result)) {
+                Log::error('Python bridge: JSON decode failed', [
+                    'json_error' => json_last_error_msg(),
+                    'json_part' => substr($jsonPart, 0, 500),
+                ]);
+                return ['error' => 'Python error: ' . substr($output, 0, 500)];
+            }
+
+            if (isset($result['error'])) {
+                Log::error('Python bridge: script returned error', $result);
+            }
+
             return $result;
         } catch (\Exception $e) {
-            \Log::error('Python bridge error: ' . $e->getMessage());
+            Log::error('Python bridge exception: ' . $e->getMessage());
             return ['error' => $e->getMessage()];
         } finally {
             if (file_exists($tmpFile)) {

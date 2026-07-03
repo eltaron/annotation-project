@@ -11,8 +11,8 @@ class DiagnosticController extends Controller
     {
         $pythonPath = SystemSetting::getValue('python_path', 'python');
         $basePath = SystemSetting::getValue('python_base_path', str_replace('\\', '/', base_path('..')));
-        $samCheckpoint = SystemSetting::getValue('sam_checkpoint_path', 'checkpoint/sam_vit_b_01ec64.pth');
-        $classifierWeights = SystemSetting::getValue('classifier_weights_path', 'checkpoint/classifier_weights.pth');
+        $samCheckpoint = SystemSetting::getValue('sam_checkpoint_path', $basePath . '/checkpoint/sam_vit_b_01ec64.pth');
+        $classifierWeights = SystemSetting::getValue('classifier_weights_path', $basePath . '/checkpoint/classifier_weights.pth');
 
         $results = [
             'python' => $this->checkPython($pythonPath),
@@ -73,9 +73,12 @@ PY;
         return $decoded;
     }
 
-    private function checkFile($basePath, $relativePath)
+    private function checkFile($basePath, $path)
     {
-        $full = $basePath . '/' . ltrim($relativePath, '/');
+        if (file_exists($path)) {
+            return ['exists' => true, 'path' => $path];
+        }
+        $full = $basePath . '/' . ltrim($path, '/');
         return [
             'exists' => file_exists($full),
             'path' => $full,

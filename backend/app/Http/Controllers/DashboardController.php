@@ -42,7 +42,10 @@ class DashboardController extends Controller
             abort(404);
         }
 
-        $healthResult = $project->cropHealthResults()->latest()->first();
+        $healthResult = $project->cropHealthResults()
+            ->where('image_upload_id', $imageUpload->id)
+            ->latest()
+            ->first();
 
         return view('projects.health-report', compact('project', 'imageUpload', 'healthResult'));
     }

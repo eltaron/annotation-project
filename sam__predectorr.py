@@ -14,7 +14,6 @@ class AdvancedSAMSegmenter:
     def __init__(self, checkpoint_path="checkpoint/sam_vit_b_01ec64.pth", model_type="vit_b"):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"[SAM INFO] Running on device: {self.device}")
 
         self.sam = sam_model_registry[model_type](checkpoint=checkpoint_path)
         self.sam.to(self.device)
@@ -190,8 +189,8 @@ class AdvancedSAMSegmenter:
             self._store_undo()
             self.class_colors[class_id] = class_color_hex
 
-            x = int(click_x * self.scale_factor)
-            y = int(click_y * self.scale_factor)
+            x = int(click_x)
+            y = int(click_y)
 
             masks, scores, _ = self.predictor.predict(
                 point_coords=np.array([[x, y]]),

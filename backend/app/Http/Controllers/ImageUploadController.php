@@ -7,8 +7,6 @@ use App\Models\ImageUpload;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ImageUploadController extends Controller
 {
@@ -18,41 +16,33 @@ class ImageUploadController extends Controller
             abort(403);
         }
 
-        $maxMb = (int) SystemSetting::getValue('max_upload_size_mb', '500');
-        $maxKb = $maxMb * 1024;
-        $request->validate([
-            'image' => 'required|file|mimes:tif,tiff|max:' . $maxKb,
-        ]);
-
         $file = $request->file('image');
-        $originalName = $file->getClientOriginalName();
+        if (!$file || !$file->isValid()) {
+            return back()->with('error', 'No file received or upload failed.');
+        }
+
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (!in_array($ext, ['tif', 'tiff'])) {
+            return back()->with('error', 'Only .tif/.tiff files are allowed.');
+        }
+
+        $maxBytes = (int) SystemSetting::getValue('max_upload_size_mb', 500) * 1048576;
+        if ($file->getSize() > $maxBytes) {
+            return back()->with('error', 'File exceeds the configured size limit.');
+        }
+
         $path = $file->store("projects/{$project->id}/images", 'public');
 
         $upload = ImageUpload::create([
             'project_id' => $project->id,
             'user_id' => Auth::id(),
-            'original_name' => $originalName,
+            'original_name' => $file->getClientOriginalName(),
             'file_path' => $path,
             'file_size' => $file->getSize(),
         ]);
 
-        // Extract metadata in background so upload returns instantly
-        dispatch(function () use ($upload) {
-            try {
-                $metadata = $this->extractMetadata($upload->file_path);
-                $upload->update([
-                    'width' => $metadata['width'] ?? null,
-                    'height' => $metadata['height'] ?? null,
-                    'bands' => $metadata['bands'] ?? null,
-                    'crs' => $metadata['crs'] ?? null,
-                ]);
-            } catch (\Throwable $e) {
-                Log::warning('Metadata extraction failed: ' . $e->getMessage());
-            }
-        })->afterResponse();
-
         return redirect()->route('projects.annotate', [$project, $upload])
-            ->with('success', 'Image uploaded successfully. Metadata is being extracted in the background.');
+            ->with('success', 'Image uploaded successfully!');
     }
 
     public function annotate(Project $project, ImageUpload $imageUpload, Request $request)
@@ -67,7 +57,6 @@ class ImageUploadController extends Controller
 
         return view('annotate.workspace', compact('project', 'imageUpload', 'classes', 'selectedClassId'));
     }
-
 
     private function extractMetadata($path)
     {

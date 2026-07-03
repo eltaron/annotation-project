@@ -110,52 +110,37 @@
 </x-app-layout>
 
 @if($healthResult)
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const fontCairo = { family: 'Cairo', size: 13 };
-    const txtColor = '#94a3b8';
-    new Chart(document.getElementById('pieChart'), {
+(function() {
+    var h = {!! json_encode($healthResult) !!};
+    var pc = document.getElementById('pieChart');
+    var bc = document.getElementById('barChart');
+    if (!pc || !bc || typeof Chart === 'undefined') return;
+    var txtColor = '#94a3b8';
+    new Chart(pc, {
         type: 'pie',
         data: {
-            labels: ['Healthy ({{ $healthResult->healthy_percentage }}%)', 'Stressed ({{ $healthResult->stressed_percentage }}%)', 'Unhealthy ({{ $healthResult->unhealthy_percentage }}%)'],
-            datasets: [{
-                data: [{{ $healthResult->healthy_percentage }}, {{ $healthResult->stressed_percentage }}, {{ $healthResult->unhealthy_percentage }}],
-                backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-                borderWidth: 0
-            }]
+            labels: ['Healthy (' + h.healthy_percentage + '%)', 'Stressed (' + h.stressed_percentage + '%)', 'Unhealthy (' + h.unhealthy_percentage + '%)'],
+            datasets: [{ data: [h.healthy_percentage, h.stressed_percentage, h.unhealthy_percentage], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], borderWidth: 0 }]
         },
         options: {
-            responsive: true, maintainAspectRatio: true,
-            color: txtColor,
-            plugins: { 
-                legend: { position: 'bottom', labels: { font: fontCairo, padding: 16, usePointStyle: true, color: txtColor } } 
-            }
+            responsive: true, maintainAspectRatio: true, color: txtColor,
+            plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, color: txtColor } } }
         }
     });
-    new Chart(document.getElementById('barChart'), {
+    new Chart(bc, {
         type: 'bar',
         data: {
             labels: ['Healthy', 'Stressed', 'Unhealthy'],
-            datasets: [{
-                label: 'Percentage %',
-                data: [{{ $healthResult->healthy_percentage }}, {{ $healthResult->stressed_percentage }}, {{ $healthResult->unhealthy_percentage }}],
-                backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-                borderRadius: 8, borderSkipped: false
-            }]
+            datasets: [{ label: 'Percentage %', data: [h.healthy_percentage, h.stressed_percentage, h.unhealthy_percentage], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], borderRadius: 8, borderSkipped: false }]
         },
         options: {
-            responsive: true, maintainAspectRatio: true,
-            color: txtColor,
-            scales: { 
-                y: { beginAtZero: true, max: 100, ticks: { font: fontCairo, color: txtColor }, grid: { color: '#ffffff10' } }, 
-                x: { ticks: { font: fontCairo, color: txtColor } } 
-            },
+            responsive: true, maintainAspectRatio: true, color: txtColor,
+            scales: { y: { beginAtZero: true, max: 100, ticks: { color: txtColor }, grid: { color: '#ffffff10' } }, x: { ticks: { color: txtColor } } },
             plugins: { legend: { display: false } }
         }
     });
-});
+})();
 </script>
-@endpush
 @endif

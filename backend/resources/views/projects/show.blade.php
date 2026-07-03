@@ -49,18 +49,44 @@
                 </div>
             </div>
 
-            {{-- Upload Image --}}
+            {{-- Upload Image (chunked) --}}
             <div class="card p-6 animate-slide-up">
                 <h3 class="section-title">Upload Satellite Image</h3>
-                <form action="{{ route('projects.images.upload', $project) }}" method="POST" enctype="multipart/form-data" class="space-y-4">
-                    @csrf
-                    <div class="border-2 border-dashed border-white/10 rounded-2xl p-10 text-center hover:border-cyan-500/50 transition-colors bg-white/5 cursor-pointer" onclick="document.getElementById('image').click()">
-                        <svg class="w-12 h-12 mx-auto text-slate-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        <p class="text-sm text-slate-400">Click to select a <strong class="text-slate-200">.tif</strong> image (4 bands)</p>
-                        <input id="image" type="file" name="image" accept=".tif,.tiff" class="hidden" required onchange="this.form.submit()">
+
+                @if(session('error'))
+                    <div class="bg-red-500/10 border border-red-500/30 text-red-300 px-4 py-3 rounded-xl mb-4 text-sm">{{ session('error') }}</div>
+                @endif
+                @if(session('success'))
+                    <div class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 px-4 py-3 rounded-xl mb-4 text-sm">{{ session('success') }}</div>
+                @endif
+
+                <div id="upload-zone" class="border-2 border-dashed border-white/10 rounded-2xl p-10 text-center hover:border-cyan-500/50 transition-colors bg-white/5 cursor-pointer" onclick="document.getElementById('image').click()">
+                    <svg class="w-12 h-12 mx-auto text-slate-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <p class="text-sm text-slate-400">Click to select a <strong class="text-slate-200">.tif</strong> image</p>
+                    <p id="file-name" class="text-xs text-cyan-400 mt-2 hidden"></p>
+                    <input id="image" type="file" accept=".tif,.tiff" class="hidden" required>
+                </div>
+
+                {{-- Progress bar --}}
+                <div id="progress-wrap" class="hidden mt-4 space-y-2">
+                    <div class="flex items-center justify-between text-xs text-slate-400">
+                        <span id="progress-label">Uploading...</span>
+                        <span id="progress-pct">0%</span>
                     </div>
-                    <x-input-error :messages="$errors->get('image')" />
-                </form>
+                    <div class="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                        <div id="progress-bar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <p id="progress-error" class="text-xs text-red-400 hidden"></p>
+                </div>
+
+                <div class="flex items-center gap-3 mt-4">
+                    <button type="button" id="upload-btn" class="btn-primary">
+                        <span id="upload-text">Upload Image</span>
+                        <span id="upload-spinner" class="hidden">
+                            <svg class="animate-spin h-5 w-5 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                        </span>
+                    </button>
+                </div>
             </div>
 
             {{-- Uploaded Images --}}
@@ -146,4 +172,118 @@
 
         </div>
     </div>
+
+    <script>
+    (function() {
+        var CHUNK_SIZE = 2 * 1024 * 1024; // 2MB per chunk
+
+        var input = document.getElementById('image');
+        var btn = document.getElementById('upload-btn');
+        var nameDisplay = document.getElementById('file-name');
+        var pw = document.getElementById('progress-wrap');
+        var bar = document.getElementById('progress-bar');
+        var pct = document.getElementById('progress-pct');
+        var label = document.getElementById('progress-label');
+        var errEl = document.getElementById('progress-error');
+        var textEl = document.getElementById('upload-text');
+        var spinnerEl = document.getElementById('upload-spinner');
+
+        input.addEventListener('change', function() {
+            var f = this.files && this.files[0];
+            if (f) {
+                nameDisplay.textContent = 'Selected: ' + f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)';
+                nameDisplay.classList.remove('hidden');
+                errEl.classList.add('hidden');
+            } else {
+                nameDisplay.classList.add('hidden');
+            }
+        });
+
+        function setProgress(pctVal, status) {
+            bar.style.width = pctVal + '%';
+            pct.textContent = pctVal + '%';
+            label.textContent = status || 'Uploading...';
+            pw.classList.remove('hidden');
+        }
+
+        function setError(msg) {
+            errEl.textContent = msg;
+            errEl.classList.remove('hidden');
+            textEl.textContent = 'Upload Image';
+            spinnerEl.classList.add('hidden');
+            btn.disabled = false;
+        }
+
+        function uuid() {
+            return 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+        }
+
+        btn.addEventListener('click', function() {
+            var file = input.files && input.files[0];
+            if (!file) { return; }
+
+            var ext = file.name.split('.').pop().toLowerCase();
+            if (ext !== 'tif' && ext !== 'tiff') {
+                setError('Only .tif/.tiff files are allowed.');
+                return;
+            }
+
+            textEl.classList.add('hidden');
+            spinnerEl.classList.remove('hidden');
+            btn.disabled = true;
+            errEl.classList.add('hidden');
+
+            var totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+            if (totalChunks === 0) totalChunks = 1;
+            var uploadId = uuid();
+            var current = 0;
+
+            function sendNext() {
+                var start = current * CHUNK_SIZE;
+                var end = Math.min(start + CHUNK_SIZE, file.size);
+                var blob = file.slice(start, end);
+
+                var formData = new FormData();
+                formData.append('_token', '{{ csrf_token() }}');
+                formData.append('file', blob, 'chunk_' + current);
+                formData.append('chunk', current);
+                formData.append('chunks', totalChunks);
+                formData.append('upload_id', uploadId);
+                formData.append('original_name', file.name);
+
+                var progress = Math.round((current + 1) / totalChunks * 100);
+                setProgress(progress, 'Uploading chunk ' + (current + 1) + ' of ' + totalChunks);
+
+                fetch('{{ route('projects.images.upload-chunk', $project) }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.error) {
+                        setError(data.error);
+                        return;
+                    }
+                    if (data.done && data.redirect) {
+                        setProgress(100, 'Complete!');
+                        window.location.href = data.redirect;
+                        return;
+                    }
+                    current++;
+                    if (current < totalChunks) {
+                        sendNext();
+                    }
+                })
+                .catch(function(err) {
+                    setError('Upload failed: ' + err.message);
+                });
+            }
+
+            sendNext();
+        });
+    })();
+    </script>
 </x-app-layout>
