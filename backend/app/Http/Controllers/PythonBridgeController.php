@@ -153,6 +153,11 @@ class PythonBridgeController extends Controller
         $base = $this->projectBasePath;
         $samCheckpoint = SystemSetting::getValue('sam_checkpoint_path', $base . '/checkpoint/sam_vit_b_01ec64.pth');
 
+        // Resolve relative path to absolute (DB may store a relative path)
+        if (!preg_match('/^[A-Za-z]:\\\\|^\\//', $samCheckpoint)) {
+            $samCheckpoint = $base . '/' . ltrim($samCheckpoint, '/\\');
+        }
+
         Log::debug('SAM checkpoint', ['path' => $samCheckpoint, 'exists' => file_exists($samCheckpoint)]);
         Log::debug('SAM image', ['path' => $imagePath, 'exists' => file_exists($imagePath)]);
 
@@ -221,6 +226,12 @@ PY;
     {
         $base = $this->projectBasePath;
         $classifierWeights = SystemSetting::getValue('classifier_weights_path', 'checkpoint/classifier_weights.pth');
+
+        // Resolve relative path to absolute
+        if (!preg_match('/^[A-Za-z]:\\\\|^\\//', $classifierWeights)) {
+            $classifierWeights = $base . '/' . ltrim($classifierWeights, '/\\');
+        }
+
         $script = <<<PY
 import sys, json
 sys.path.insert(0, '{$base}')
