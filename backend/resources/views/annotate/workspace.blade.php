@@ -105,6 +105,10 @@
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
                                     Undo
                                 </button>
+                                <button id="heatmapToggle" class="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1" onclick="toggleHeatmap()">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                                    <span id="heatmapLabel">Heatmap</span>
+                                </button>
                             </div>
                             <p class="text-xs text-slate-400">Click on the image to start annotating</p>
                         </div>
@@ -126,6 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const classifyUrl = '{{ route("projects.classify", $project) }}';
     const healthUrl = '{{ route("projects.analyze-health", $project) }}';
     const healthReportUrl = '{{ route("projects.health-report", [$project, $imageUpload]) }}';
+    const heatmapUrl = '{{ route("projects.images.heatmap", [$project, $imageUpload]) }}?t=' + Date.now();
 
     const canvas = document.getElementById('imageCanvas');
     const ctx = canvas.getContext('2d');
@@ -133,6 +138,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const overlay = document.getElementById('loadingOverlay');
 
     let img = new Image();
+    let heatmapImg = new Image();
+    let showHeatmap = false;
+    let heatmapLoaded = false;
     let scale = 1;
     let offsetX = 0, offsetY = 0;
     let lastClick = null;
@@ -154,6 +162,11 @@ document.addEventListener('DOMContentLoaded', function() {
         offsetX = (canvas.width - iw) / 2;
         offsetY = (canvas.height - ih) / 2;
         ctx.drawImage(img, offsetX, offsetY, iw, ih);
+        if (showHeatmap && heatmapLoaded) {
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(heatmapImg, offsetX, offsetY, iw, ih);
+            ctx.globalAlpha = 1;
+        }
     }
 
     function getRings(poly) {
@@ -259,6 +272,19 @@ document.addEventListener('DOMContentLoaded', function() {
         drawAnnotations();
     };
 
+    window.toggleHeatmap = function() {
+        if (!heatmapLoaded) { showToast('Run Health Analysis first to generate heatmap.', 'info'); return; }
+        showHeatmap = !showHeatmap;
+        document.getElementById('heatmapLabel').textContent = showHeatmap ? 'Hide Heatmap' : 'Heatmap';
+        drawImage();
+        drawAnnotations();
+    };
+
+    // Preload heatmap image (silent fail if not yet analyzed)
+    heatmapImg.onload = function() { heatmapLoaded = true; };
+    heatmapImg.onerror = function() {};
+    heatmapImg.src = heatmapUrl;
+
     window.zoomIn = function() {
         scale = Math.min(scale * 1.3, 5);
         drawImage();
@@ -362,6 +388,11 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({ image_upload_id: imageUploadId })
         }).then(handleResponse).then(function(data) {
             if (data.error) { showToast('Health Analysis Error: ' + data.error, 'error'); return; }
+            // Reload heatmap so toggle works when returning to workspace
+            heatmapImg = new Image();
+            heatmapImg.onload = function() { heatmapLoaded = true; };
+            heatmapImg.onerror = function() {};
+            heatmapImg.src = heatmapUrl + '&reload=' + Date.now();
             showToast('Health analysis complete — redirecting to report...');
             setTimeout(function() { window.location.href = healthReportUrl; }, 1000);
         }).catch(function(err) {

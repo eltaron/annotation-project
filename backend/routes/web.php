@@ -47,6 +47,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/analyze-health', [PythonBridgeController::class, 'analyzeHealth'])->name('projects.analyze-health');
 
         Route::get('/health-report/{imageUpload}', [DashboardController::class, 'healthReport'])->name('projects.health-report');
+        Route::get('/images/{imageUpload}/heatmap', [PythonBridgeController::class, 'showHeatmap'])->name('projects.images.heatmap');
     });
 });
 

@@ -18,6 +18,7 @@ class CropHealthResult extends Model
         'unhealthy_percentage',
         'overall_status',
         'raw_stats',
+        'heatmap_path',
     ];
 
     protected $casts = [

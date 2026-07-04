@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Response;
 
 class PythonBridgeController extends Controller
 {
@@ -114,7 +115,15 @@ class PythonBridgeController extends Controller
         $imageUpload = ImageUpload::findOrFail($request->image_upload_id);
         $imagePath = str_replace('\\', '/', Storage::disk('public')->path($imageUpload->file_path));
 
-        $stats = $this->callPythonGeoProcessor($imagePath);
+        // Generate heatmap and save to storage
+        $heatmapRelPath = "projects/{$project->id}/heatmaps/{$imageUpload->id}.png";
+        $heatmapFullPath = str_replace('\\', '/', Storage::disk('public')->path($heatmapRelPath));
+        $heatmapDir = dirname($heatmapFullPath);
+        if (!is_dir($heatmapDir)) {
+            mkdir($heatmapDir, 0755, true);
+        }
+
+        $stats = $this->callPythonGeoProcessor($imagePath, $heatmapFullPath);
 
         if (!$stats || isset($stats['error'])) {
             return response()->json(['error' => 'Health analysis failed'], 500);
@@ -143,9 +152,36 @@ class PythonBridgeController extends Controller
             'unhealthy_percentage' => $unhealthyPct,
             'overall_status' => $overallStatus,
             'raw_stats' => $stats,
+            'heatmap_path' => $heatmapRelPath,
         ]);
 
         return response()->json($result);
+    }
+
+    public function showHeatmap(Project $project, ImageUpload $imageUpload)
+    {
+        if ($project->user_id !== Auth::id()) abort(403);
+
+        $result = CropHealthResult::where('project_id', $project->id)
+            ->where('image_upload_id', $imageUpload->id)
+            ->latest()
+            ->first();
+
+        if (!$result || !$result->heatmap_path) {
+            abort(404, 'Heatmap not found. Run health analysis first.');
+        }
+
+        $path = Storage::disk('public')->path($result->heatmap_path);
+        if (!file_exists($path)) {
+            abort(404, 'Heatmap file not found.');
+        }
+
+        return Response::file($path, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     private function callPythonSamSegmenter($imagePath, $clickX, $clickY, $clickType, $classId, $color)
@@ -249,9 +285,10 @@ PY;
         return $this->runPython($script);
     }
 
-    private function callPythonGeoProcessor($imagePath)
+    private function callPythonGeoProcessor($imagePath, $heatmapOutputPath = null)
     {
         $base = $this->projectBasePath;
+        $saveHeatmap = $heatmapOutputPath ? "with open(r'{$heatmapOutputPath}', 'wb') as f: f.write(ndvi)" : '';
         $script = <<<PY
 import sys, json
 sys.path.insert(0, '{$base}')
@@ -261,6 +298,7 @@ with open(r'{$imagePath}', 'rb') as f:
     data = f.read()
 
 rgb, ndvi, stats = process_geotiff(data)
+{$saveHeatmap}
 print(json.dumps(stats))
 PY;
         return $this->runPython($script);
